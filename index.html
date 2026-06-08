@@ -579,10 +579,11 @@ tr:hover td{background:var(--bg2)}
                 <input id="cfg-admin-phone" placeholder="5493516002716" style="font-family:'JetBrains Mono',monospace;font-size:13px"/>
                 <div class="hint">Recibe alertas del sistema. Formato: 549 + número sin 0 ni 15.</div>
               </div>
-              <div class="fg">
-                <label>Teléfono asesor (derivaciones)</label>
-                <input id="cfg-redirect-phone" placeholder="5493516002716" style="font-family:'JetBrains Mono',monospace;font-size:13px"/>
-                <div class="hint">Cuando el cliente pide hablar con un asesor, el bot le envía el link a este número y le manda un resumen.</div>
+              <div class="fg" style="margin-bottom:12px">
+                <label>Asesores para derivaciones</label>
+                <div id="advisors-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+                <button class="btn btn-ghost btn-sm" onclick="addAdvisor()" style="align-self:flex-start">+ Agregar asesor</button>
+                <div class="hint" style="margin-top:6px">La IA elegirá a qué asesor derivar según la especialidad y le enviará el resumen a ese número.</div>
               </div>
             </div>
 
@@ -1749,8 +1750,12 @@ async function saveAgentDrawer() {
     customAgents.push({ name, emoji, desc, prompt, keywords: [...naKeywords] })
     toast(`Agente "${name}" creado`)
   }
-  renderCustomAgents()
-  closeAgentDrawer()
+  
+  try {
+    await apiFetch('/api/settings', { method: 'PUT', body: JSON.stringify({ custom_agents: customAgents }) })
+    renderCustomAgents()
+    closeAgentDrawer()
+  } catch { toast('Error guardando', 'err') }
 }
 
 function renderCustomAgents() {
@@ -1793,10 +1798,13 @@ function editCustomAgent(i) {
   document.getElementById('agent-save-btn').textContent = 'Guardar cambios'
 }
 
-function deleteCustomAgent(i) {
+async function deleteCustomAgent(i) {
   if (!confirm('¿Eliminar agente?')) return
   customAgents.splice(i, 1)
-  renderCustomAgents()
+  try {
+    await apiFetch('/api/settings', { method: 'PUT', body: JSON.stringify({ custom_agents: customAgents }) })
+    renderCustomAgents()
+  } catch { toast('Error al eliminar', 'err') }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1807,6 +1815,7 @@ let _blacklistAll    = false
 let _whitelistPhones = []
 let _blacklistPhones = []
 let _faqs            = []
+let _advisors        = []
 
 async function loadSettings() {
   try {
@@ -1826,8 +1835,27 @@ async function loadSettings() {
     if (r) r.value = s.restrictions           || ''
     const ap = document.getElementById('cfg-admin-phone')
     if (ap) ap.value = s.admin_phone           || ''
-    const rp = document.getElementById('cfg-redirect-phone')
-    if (rp) rp.value = s.redirect_phone       || ''
+    _advisors = Array.isArray(s.advisors) ? s.advisors : []
+    if (s.redirect_phone && _advisors.length === 0) {
+      _advisors.push({ name: 'Asesor', phone: s.redirect_phone, role: 'General' })
+    }
+    renderAdvisors()
+
+    if (s.business_hours) {
+      const bh = s.business_hours
+      hoursState.forEach((h, i) => {
+        const stored = bh[DAYS[i]]
+        if (stored) {
+          h.on = stored.on !== false
+          h.split = stored.split === true
+          h.from = stored.from || '09:00'
+          h.to = stored.to || '18:00'
+          h.from2 = stored.from2 || '14:00'
+          h.to2 = stored.to2 || '18:00'
+        }
+      })
+      initHours()
+    }
 
     // Whitelist / Blacklist
     const wl = Array.isArray(s.allowed_phones) ? s.allowed_phones : []
@@ -1848,6 +1876,10 @@ async function loadSettings() {
     // FAQs
     _faqs = Array.isArray(s.faqs) ? s.faqs : []
     renderFaqs()
+
+    // Custom agents
+    customAgents = Array.isArray(s.custom_agents) ? s.custom_agents : []
+    renderCustomAgents()
 
     // Business identity
     _bizName = s.business_name || ''
@@ -1890,7 +1922,8 @@ async function saveSettings(source = 'biz') {
         goals:                document.getElementById('cfg-goals')?.value         || undefined,
         restrictions:         document.getElementById('cfg-restrictions')?.value  || undefined,
         admin_phone:          document.getElementById('cfg-admin-phone')?.value?.trim()   || undefined,
-        redirect_phone:       document.getElementById('cfg-redirect-phone')?.value?.trim() || undefined,
+        advisors:             _advisors,
+        business_hours:       hoursState.reduce((acc, h, i) => { acc[DAYS[i]] = h; return acc }, {}),
       }
     } else {
       // 'cfg' = access control section
@@ -2002,6 +2035,69 @@ function phoneChip(phone, idx, removeFn, danger = false) {
     <button onclick="${removeFn}(${idx})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;line-height:1;padding:0;margin-left:2px" title="Eliminar">×</button>
   </span>`
 }
+
+// ── ADVISORS UI ─────────────────────────────────────────────────
+  function renderAdvisors() {
+    const wrap = document.getElementById('advisors-list')
+    if (!wrap) return
+    wrap.innerHTML = _advisors.map((a, i) => `
+      <div style="display:flex;gap:8px;align-items:center">
+        <input placeholder="Nombre" value="${a.name||''}" onchange="_advisors[${i}].name=this.value" style="width:100px;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px"/>
+        <input placeholder="Especialidad (ej: Ventas)" value="${a.role||''}" onchange="_advisors[${i}].role=this.value" style="width:140px;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px"/>
+        <input placeholder="Teléfono" value="${a.phone||''}" onchange="_advisors[${i}].phone=this.value" style="flex:1;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;font-family:monospace"/>
+        <button class="btn-icon" onclick="_advisors.splice(${i},1);renderAdvisors()" style="color:var(--danger)">✕</button>
+      </div>
+    `).join('')
+  }
+  function addAdvisor() {
+    _advisors.push({ name: '', phone: '', role: '' })
+    renderAdvisors()
+  }
+
+// ═══════════════════════════════════════════════════════════════════
+// HOURS
+// ═══════════════════════════════════════════════════════════════════
+  const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
+  const hoursState = DAYS.map((_, i) => ({ on: i < 5, split: false, from: '09:00', to: '18:00', from2: '14:00', to2: '18:00' }))
+
+  function initHours() {
+    const g = document.getElementById('hours-grid')
+    g.innerHTML = DAYS.map((d, i) => `
+      <div style="display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg2)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <div class="toggle ${hoursState[i].on ? 'on' : ''}" onclick="toggleDay(${i})" id="hday-${i}"></div>
+          <span style="width:80px;color:var(--text${hoursState[i].on ? '' : '2'})" id="hlabel-${i}">${d}</span>
+          <input type="time" value="${hoursState[i].from}" onchange="hoursState[${i}].from=this.value" id="hfrom-${i}" style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;${hoursState[i].on ? '' : 'opacity:.4'}"/>
+          <span style="color:var(--text2)">a</span>
+          <input type="time" value="${hoursState[i].to}" onchange="hoursState[${i}].to=this.value" id="hto-${i}" style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;${hoursState[i].on ? '' : 'opacity:.4'}"/>
+          <label style="display:flex;align-items:center;gap:4px;margin-left:auto;font-size:11px;color:var(--text2);cursor:pointer">
+            <input type="checkbox" ${hoursState[i].split ? 'checked' : ''} onchange="toggleSplit(${i})" ${hoursState[i].on ? '' : 'disabled'} id="hsplit-${i}"/> Cortado
+          </label>
+        </div>
+        <div id="hsplit-row-${i}" style="display:${hoursState[i].split && hoursState[i].on ? 'flex' : 'none'};align-items:center;gap:8px;font-size:13px;padding-left:118px">
+          <input type="time" value="${hoursState[i].from2}" onchange="hoursState[${i}].from2=this.value" style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px"/>
+          <span style="color:var(--text2)">a</span>
+          <input type="time" value="${hoursState[i].to2}" onchange="hoursState[${i}].to2=this.value" style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px"/>
+        </div>
+      </div>`).join('')
+  }
+
+  function toggleDay(i) {
+    hoursState[i].on = !hoursState[i].on
+    initHours()
+  }
+
+  function toggleSplit(i) {
+    hoursState[i].split = !hoursState[i].split
+    initHours()
+  }
+
+  function setHours(preset) {
+    if (preset === 'lv') { hoursState.forEach((h, i) => { h.on = i < 5; h.split = false; h.from = '09:00'; h.to = '18:00' }) }
+    if (preset === 'ls') { hoursState.forEach((h, i) => { h.on = i < 6; h.split = false; h.from = '09:00'; h.to = '20:00' }) }
+    if (preset === '24') { hoursState.forEach(h => { h.on = true; h.split = false; h.from = '00:00'; h.to = '23:59' }) }
+    initHours()
+  }
 
 // ═══════════════════════════════════════════════════════════════════
 // LOGS SSE
