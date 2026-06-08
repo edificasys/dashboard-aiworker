@@ -2136,40 +2136,6 @@ function clearLogs() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MI NEGOCIO — HOURS
-// ═══════════════════════════════════════════════════════════════════
-const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
-const hoursState = DAYS.map((_, i) => ({ on: i < 5, from: '09:00', to: '18:00' }))
-
-function initHours() {
-  const g = document.getElementById('hours-grid')
-  g.innerHTML = DAYS.map((d, i) => `
-    <div style="display:flex;align-items:center;gap:8px;font-size:13px">
-      <div class="toggle ${hoursState[i].on ? 'on' : ''}" onclick="toggleDay(${i})" id="hday-${i}"></div>
-      <span style="width:80px;color:var(--text${hoursState[i].on ? '' : '2'})" id="hlabel-${i}">${d}</span>
-      <input type="time" value="${hoursState[i].from}" id="hfrom-${i}" style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;${hoursState[i].on ? '' : 'opacity:.4'}"/>
-      <span style="color:var(--text2)">→</span>
-      <input type="time" value="${hoursState[i].to}" id="hto-${i}" style="border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;${hoursState[i].on ? '' : 'opacity:.4'}"/>
-    </div>`).join('')
-}
-
-function toggleDay(i) {
-  hoursState[i].on = !hoursState[i].on
-  const on = hoursState[i].on
-  document.getElementById('hday-' + i).classList.toggle('on', on)
-  document.getElementById('hlabel-' + i).style.color = on ? 'var(--text)' : 'var(--text2)'
-  document.getElementById('hfrom-' + i).style.opacity = on ? '1' : '.4'
-  document.getElementById('hto-' + i).style.opacity = on ? '1' : '.4'
-}
-
-function setHours(preset) {
-  if (preset === 'lv') { hoursState.forEach((h, i) => { h.on = i < 5; h.from = '09:00'; h.to = '18:00' }) }
-  if (preset === 'ls') { hoursState.forEach((h, i) => { h.on = i < 6; h.from = '09:00'; h.to = '20:00' }) }
-  if (preset === '24') { hoursState.forEach(h => { h.on = true; h.from = '00:00'; h.to = '23:59' }) }
-  initHours()
-}
-
-// ═══════════════════════════════════════════════════════════════════
 // MI NEGOCIO — PRODUCTS  (API-backed)
 // ═══════════════════════════════════════════════════════════════════
 let products = []
