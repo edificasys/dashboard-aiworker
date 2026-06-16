@@ -786,6 +786,9 @@ async function loadSettings() {
     // Agent prompts
     agentPrompts = (s.agent_prompts && typeof s.agent_prompts === 'object') ? s.agent_prompts : {}
 
+    // Agent overrides
+    agentOverrides = (s.agent_overrides && typeof s.agent_overrides === 'object') ? s.agent_overrides : {}
+
     // Agent active state
     _agentActive = (s.agent_active && typeof s.agent_active === 'object') ? s.agent_active : {}
 
