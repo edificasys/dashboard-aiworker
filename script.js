@@ -180,7 +180,7 @@ function nav(id, btn) {
   stopConvPolling()
   if (id === 'inbox') loadConversations()
   if (id === 'negocio') loadSettings()
-  if (id === 'agentes') { loadSettings(); initAgents() }
+  if (id === 'agentes') { loadSettings().then(initAgents) }
   if (id === 'config') { loadStatus(); loadSettings() }
   if (id === 'usuarios') { loadUsers(); loadActivityLog() }
   if (id === 'notif') loadNotifications()
