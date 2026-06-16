@@ -403,10 +403,10 @@ async function openConv(id, name, phone) {
   activeConvId = id
   startConvPolling(id)
   renderConvList()
+  const cv = allConvs.find(c => c.id === id) || {}
   const area = document.getElementById('chat-area')
   area.innerHTML = `<div class="chat-header"><div class="conv-av" style="width:36px;height:36px;font-size:14px">${(name||'?')[0].toUpperCase()}</div><div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(name)}</div><div style="font-size:11px;color:var(--text2)">${phone}</div></div><span class="badge ${cv.bot_paused ? 'badge-blue' : 'badge-green'}">${cv.bot_paused ? '🧑 Agente humano' : '🤖 Bot activo'}</span></div><div class="chat-msgs" id="msgs-area"><div style="text-align:center;color:var(--text2);padding:20px">Cargando…</div></div><div class="chat-input-area" id="chat-input-zone"></div>`
   renderInputZone(id)
-  const cv = allConvs.find(c => c.id === id) || {}
   document.getElementById('contact-detail').innerHTML = `
     <div class="contact-panel">
       <div class="contact-av-lg">${(name||'?')[0].toUpperCase()}</div>
