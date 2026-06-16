@@ -443,11 +443,12 @@ async function toggleHil(id) {
   if (!cv) return
   const newPaused = !cv.bot_paused
   try {
-    await apiFetch(`/api/conversations/${id}/pause`, { method: 'POST', body: JSON.stringify({ paused: newPaused }) })
+    const res = await apiFetch(`/api/conversations/${id}/pause`, { method: 'POST', body: JSON.stringify({ paused: newPaused }) })
+    if (res.error) throw new Error(res.error)
     cv.bot_paused = newPaused
     openConv(id, cv.name || '', cv.phone || '')
     toast(newPaused ? 'Tomaste el control de la conversación' : 'El bot retomó la conversación')
-  } catch (err) { toast('Error cambiando el control', 'err') }
+  } catch (err) { toast('Error cambiando el control: ' + err.message, 'err') }
 }
 
 let _convPollInterval = null
