@@ -366,7 +366,7 @@ function setFilter(f, btn) {
 }
 
 // Human-in-the-loop state
-const hilState = {}
+
 
 function buildMsgHtml(m) {
   const isAI = m.sender === 'ai'
@@ -404,7 +404,7 @@ async function openConv(id, name, phone) {
   startConvPolling(id)
   renderConvList()
   const area = document.getElementById('chat-area')
-  area.innerHTML = `<div class="chat-header"><div class="conv-av" style="width:36px;height:36px;font-size:14px">${(name||'?')[0].toUpperCase()}</div><div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(name)}</div><div style="font-size:11px;color:var(--text2)">${phone}</div></div><span class="badge ${hilState[id] ? 'badge-blue' : 'badge-green'}">${hilState[id] ? '🧑 Agente humano' : '🤖 Bot activo'}</span></div><div class="chat-msgs" id="msgs-area"><div style="text-align:center;color:var(--text2);padding:20px">Cargando…</div></div><div class="chat-input-area" id="chat-input-zone"></div>`
+  area.innerHTML = `<div class="chat-header"><div class="conv-av" style="width:36px;height:36px;font-size:14px">${(name||'?')[0].toUpperCase()}</div><div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(name)}</div><div style="font-size:11px;color:var(--text2)">${phone}</div></div><span class="badge ${cv.bot_paused ? 'badge-blue' : 'badge-green'}">${cv.bot_paused ? '🧑 Agente humano' : '🤖 Bot activo'}</span></div><div class="chat-msgs" id="msgs-area"><div style="text-align:center;color:var(--text2);padding:20px">Cargando…</div></div><div class="chat-input-area" id="chat-input-zone"></div>`
   renderInputZone(id)
   const cv = allConvs.find(c => c.id === id) || {}
   document.getElementById('contact-detail').innerHTML = `
@@ -416,8 +416,8 @@ async function openConv(id, name, phone) {
       <div class="info-row"><span class="label">Último mensaje</span><span class="val">${fmtDate(cv.last_message_at)}</span></div>
       <div class="hil-card">
         <h4>Human-in-the-loop</h4>
-        <p style="font-size:12px;color:var(--text2);margin-bottom:10px">${hilState[id] ? 'Estás controlando esta conversación manualmente.' : 'El bot está respondiendo automáticamente.'}</p>
-        <button class="btn hil-btn ${hilState[id] ? 'btn-ghost' : 'btn-danger'}" onclick="toggleHil(${id})">${hilState[id] ? '🤖 Devolver al bot' : '🧑 Tomar control'}</button>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:10px">${cv.bot_paused ? 'Estás controlando esta conversación manualmente.' : 'El bot está respondiendo automáticamente.'}</p>
+        <button class="btn hil-btn ${cv.bot_paused ? 'btn-ghost' : 'btn-danger'}" onclick="toggleHil(${id})">${cv.bot_paused ? '🤖 Devolver al bot' : '🧑 Tomar control'}</button>
       </div>
       <div class="divider"></div>
       <div class="fg"><label>Notas del contacto</label><textarea rows="3" placeholder="Anotá info relevante del cliente…" style="width:100%"></textarea></div>
@@ -429,7 +429,7 @@ async function openConv(id, name, phone) {
 function renderInputZone(id) {
   const zone = document.getElementById('chat-input-zone')
   if (!zone) return
-  const active = hilState[id]
+  const active = allConvs.find(c => c.id === id)?.bot_paused
   zone.innerHTML = active ? `
     <div style="background:var(--info-lt);padding:6px 14px;font-size:11px;color:#1d4ed8;font-weight:500">🧑 Modo manual activo — tus mensajes van directo al cliente por WhatsApp</div>
     <div class="chat-input-row" style="padding:10px 14px">
@@ -438,10 +438,16 @@ function renderInputZone(id) {
     </div>` : `<div style="padding:10px 14px;text-align:center;font-size:12px;color:var(--text2)">🤖 El bot está manejando esta conversación automáticamente.<br/><span style="font-size:11px;color:var(--text3)">Tomá el control para responder manualmente.</span></div>`
 }
 
-function toggleHil(id) {
-  hilState[id] = !hilState[id]
-  openConv(id, (allConvs.find(c => c.id === id)?.name || ''), (allConvs.find(c => c.id === id)?.phone || ''))
-  toast(hilState[id] ? 'Tomaste el control de la conversación' : 'El bot retomó la conversación')
+async function toggleHil(id) {
+  const cv = allConvs.find(c => c.id === id)
+  if (!cv) return
+  const newPaused = !cv.bot_paused
+  try {
+    await apiFetch(`/api/conversations/${id}/pause`, { method: 'POST', body: JSON.stringify({ paused: newPaused }) })
+    cv.bot_paused = newPaused
+    openConv(id, cv.name || '', cv.phone || '')
+    toast(newPaused ? 'Tomaste el control de la conversación' : 'El bot retomó la conversación')
+  } catch (err) { toast('Error cambiando el control', 'err') }
 }
 
 let _convPollInterval = null
