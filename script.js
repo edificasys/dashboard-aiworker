@@ -374,10 +374,11 @@ function buildMsgHtml(m) {
   const agentMeta = (isAI || isHuman)
     ? (isHuman ? { icon: '🧑', label: 'Operador', cls: 'at-generalista' } : agentLabel(m.agent_type))
     : { icon: '👤', label: 'Cliente', cls: 'at-cliente' }
+  const imgHtml = m.media_url ? `<img src="${m.media_url}" style="max-width: 250px; border-radius: 8px; margin-bottom: 8px; display: block;" alt="Imagen enviada"/>` : ''
   return `<div class="bubble-wrap ${m.sender === 'client' ? 'client' : 'ai'}" data-msg-id="${m.id}">
     <div class="bubble-av" title="${agentMeta.label}">${agentMeta.icon}</div>
     <div>
-      <div class="bubble">${esc(m.content || '')}</div>
+      <div class="bubble">${imgHtml}${esc(m.content || '')}</div>
       <div class="bubble-meta">${fmtDateTime(m.created_at)}<span class="audit-tag ${agentMeta.cls}">${agentMeta.label}</span></div>
     </div>
   </div>`
@@ -396,7 +397,19 @@ async function refreshConvMessages(id) {
     const scrolledToBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 80
     area.innerHTML = msgs.map(buildMsgHtml).join('')
     if (scrolledToBottom) area.scrollTop = area.scrollHeight
+    renderMediaGallery(msgs)
   } catch {}
+}
+
+function renderMediaGallery(msgs) {
+  const gallery = document.getElementById('contact-media-gallery')
+  if (!gallery) return
+  const mediaMsgs = msgs.filter(m => m.media_url)
+  if (!mediaMsgs.length) {
+    gallery.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--text3);text-align:center;padding:10px 0">Sin multimedia</div>'
+    return
+  }
+  gallery.innerHTML = mediaMsgs.map(m => `<a href="${m.media_url}" target="_blank"><img src="${m.media_url}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--border)" title="${esc(m.content||'Imagen')}"></a>`).join('')
 }
 
 async function openConv(id, name, phone) {
@@ -422,6 +435,11 @@ async function openConv(id, name, phone) {
       <div class="divider"></div>
       <div class="fg"><label>Notas del contacto</label><textarea rows="3" placeholder="Anotá info relevante del cliente…" style="width:100%"></textarea></div>
       <div style="margin-top:10px"><label class="fg" style="display:block;margin-bottom:6px"><span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Tags</span></label><div style="display:flex;flex-wrap:wrap;gap:4px"><span class="chip">cliente</span><span class="chip">+ tag</span></div></div>
+      <div class="divider"></div>
+      <div class="media-gallery-section" style="margin-top:10px">
+        <label class="fg" style="display:block;margin-bottom:10px"><span style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Multimedia Compartida</span></label>
+        <div id="contact-media-gallery" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+      </div>
     </div>`
   await refreshConvMessages(id)
 }
