@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
@@ -578,7 +578,7 @@ tr:hover td{background:var(--bg2)}
             <div class="form-grid">
               <div class="fg">
                 <label>Teléfono administrador</label>
-                <input id="cfg-admin-phone" placeholder="5493516002716" style="font-family:'JetBrains Mono',monospace;font-size:13px"/>
+                <input id="cfg-admin-phone" placeholder="Ej: 549351XXXXXXX" style="font-family:'JetBrains Mono',monospace;font-size:13px"/>
                 <div class="hint">Recibe alertas del sistema. Formato: 549 + número sin 0 ni 15.</div>
               </div>
               <div class="fg" style="margin-bottom:12px">
@@ -3466,7 +3466,7 @@ async function sendEdyMsg() {
     else addEdyMsg('bot', 'Tuve un problema técnico. Intentá de nuevo.')
   } catch {
     removeEdyTyping()
-    addEdyMsg('bot', 'No puedo conectarme al servidor ahora mismo.\n\nSi el problema persiste, contactá al AI Engineer:\nhttps://wa.me/5493516002716')
+    addEdyMsg('bot', 'No puedo conectarme al servidor ahora mismo.\n\nVerificá que el backend esté activo o intentá nuevamente en unos momentos.')
   } finally { _edyLoading = false }
 }
 </script>
