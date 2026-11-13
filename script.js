@@ -374,11 +374,20 @@ function buildMsgHtml(m) {
   const agentMeta = (isAI || isHuman)
     ? (isHuman ? { icon: '🧑', label: 'Operador', cls: 'at-generalista' } : agentLabel(m.agent_type))
     : { icon: '👤', label: 'Cliente', cls: 'at-cliente' }
-  const imgHtml = m.media_url ? `<img src="${m.media_url}" style="max-width: 250px; border-radius: 8px; margin-bottom: 8px; display: block;" alt="Imagen enviada"/>` : ''
+
+  let mediaHtml = ''
+  if (m.media_url) {
+    const isAudio = m.type === 'audio' || m.media_url.startsWith('data:audio') || m.media_url.endsWith('.ogg') || m.media_url.endsWith('.mp3') || m.media_url.endsWith('.m4a') || (m.content && m.content.includes('[Audio'))
+    if (isAudio) {
+      mediaHtml = `<div style="margin-bottom:8px;padding:6px;background:rgba(0,0,0,0.04);border-radius:8px"><div style="font-size:11px;font-weight:600;margin-bottom:4px;color:var(--text2)">🎵 Nota de voz</div><audio controls src="${m.media_url}" style="max-width:270px;height:36px;display:block"></audio></div>`
+    } else {
+      mediaHtml = `<img src="${m.media_url}" style="max-width: 260px; max-height: 260px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; display: block; cursor: pointer; border: 1px solid var(--border);" alt="Imagen adjunta" onclick="window.open(this.src,'_blank')"/>`
+    }
+  }
   return `<div class="bubble-wrap ${m.sender === 'client' ? 'client' : 'ai'}" data-msg-id="${m.id}">
     <div class="bubble-av" title="${agentMeta.label}">${agentMeta.icon}</div>
     <div>
-      <div class="bubble">${imgHtml}${esc(m.content || '')}</div>
+      <div class="bubble">${mediaHtml}${esc(m.content || '')}</div>
       <div class="bubble-meta">${fmtDateTime(m.created_at)}<span class="audit-tag ${agentMeta.cls}">${agentMeta.label}</span></div>
     </div>
   </div>`
@@ -409,7 +418,13 @@ function renderMediaGallery(msgs) {
     gallery.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--text3);text-align:center;padding:10px 0">Sin multimedia</div>'
     return
   }
-  gallery.innerHTML = mediaMsgs.map(m => `<a href="${m.media_url}" target="_blank"><img src="${m.media_url}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--border)" title="${esc(m.content||'Imagen')}"></a>`).join('')
+  gallery.innerHTML = mediaMsgs.map(m => {
+    const isAudio = m.type === 'audio' || m.media_url.startsWith('data:audio') || m.media_url.endsWith('.ogg') || m.media_url.endsWith('.mp3') || m.media_url.endsWith('.m4a') || (m.content && m.content.includes('[Audio'))
+    if (isAudio) {
+      return `<div style="grid-column:1/-1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2)"><div style="font-size:11px;margin-bottom:4px">🎵 Nota de voz</div><audio controls src="${m.media_url}" style="width:100%;height:32px"></audio></div>`
+    }
+    return `<a href="${m.media_url}" target="_blank"><img src="${m.media_url}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid var(--border)" title="${esc(m.content||'Imagen')}"></a>`
+  }).join('')
 }
 
 async function openConv(id, name, phone) {
@@ -545,6 +560,14 @@ const NATIVE_AGENTS = [
     desc: 'Cuando el cliente pide hablar con un asesor: envía el link de WhatsApp del asesor y le manda al asesor un resumen de la conversación.',
     keywords: ['hablar con persona', 'hablar con asesor', 'quiero un asesor', 'quiero ser atendido', 'derivame', 'un humano'],
     trigger: '"quiero hablar con un asesor", "me comunican", "hablen conmigo"…',
+  },
+  {
+    type: 'medidas', emoji: '📐', name: 'Agente Planilla de Medidas',
+    badge: { cls: 'badge-teal', label: 'Planilla Medidas' },
+    badgeCls: 'at-medidas',
+    desc: 'Releva los datos de obra y vanos (alto, ancho, profundidad, sentido de apertura) para generar la Planilla de Medidas oficial de EDIFICA, pide confirmación al cliente y la deriva al asesor.',
+    keywords: ['medida', 'medidas', 'vano', 'vanos', 'planilla', 'planilla de medidas', 'relevamiento', 'tomar medidas', 'abertura a medida', 'puerta a medida', 'ventana a medida'],
+    trigger: 'medidas, vano, planilla de medidas, relevamiento, puerta/abertura a medida…',
   },
 ]
 
@@ -2037,6 +2060,7 @@ function agentLabel(type) {
     productos:    { icon: '🏷️', label: 'Agente Productos',    cls: 'at-productos'   },
     cotizacion:   { icon: '💰', label: 'Agente Cotización',    cls: 'at-cotizacion'  },
     redireccion:  { icon: '📱', label: 'Agente Redirección',   cls: 'at-redireccion' },
+    medidas:      { icon: '📐', label: 'Agente Medidas',       cls: 'at-medidas'     },
   }
   return map[type] || { icon: '🤖', label: 'IA', cls: 'at-generalista' }
 }
