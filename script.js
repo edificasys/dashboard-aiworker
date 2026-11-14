@@ -1,4 +1,4 @@
-
+﻿
 // ═══════════════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════════════
@@ -347,13 +347,17 @@ function renderConvList() {
   if (q) convs = convs.filter(c => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q))
   if (!convs.length) { list.innerHTML = '<div class="empty-state" style="padding:32px"><span class="empty-icon">💬</span><p>Sin resultados</p></div>'; return }
   list.innerHTML = convs.map(c => `
-    <div class="conv-row ${activeConvId === c.id ? 'active' : ''}" onclick="openConv(${c.id},'${esc(c.name || c.phone)}','${c.phone}')">
+    <div class="conv-row ${activeConvId === c.id ? 'active' : ''}" onclick="openConv(${c.id},'${esc(c.name || c.phone)}','${c.phone}')" style="position:relative;display:flex;align-items:center;gap:10px">
       <div class="conv-av">${(c.name || c.phone || '?')[0].toUpperCase()}</div>
-      <div class="conv-info">
-        <div class="conv-name">${esc(c.name || 'Sin nombre')}<span class="conv-time">${fmtDate(c.last_message_at)}</span></div>
+      <div class="conv-info" style="flex:1;min-width:0">
+        <div class="conv-name" style="display:flex;justify-content:space-between;align-items:center">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name || 'Sin nombre')}</span>
+          <span class="conv-time">${fmtDate(c.last_message_at)}</span>
+        </div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:3px">${c.phone}</div>
         <div class="conv-preview ${c.last_sender === 'ai' ? 'conv-bot' : ''}">${esc((c.last_message || '—').substring(0, 45))}</div>
       </div>
+      <button onclick="event.stopPropagation();deleteConv(${c.id})" title="Eliminar conversación" style="background:transparent;border:none;color:var(--text3);font-size:14px;padding:6px;cursor:pointer;opacity:0.5;border-radius:4px;transition:all .15s" onmouseover="this.style.opacity=1;this.style.color='var(--danger)'" onmouseout="this.style.opacity=0.5;this.style.color='var(--text3)'">🗑️</button>
     </div>`).join('')
 }
 
@@ -433,7 +437,7 @@ async function openConv(id, name, phone) {
   renderConvList()
   const cv = allConvs.find(c => c.id === id) || {}
   const area = document.getElementById('chat-area')
-  area.innerHTML = `<div class="chat-header"><div class="conv-av" style="width:36px;height:36px;font-size:14px">${(name||'?')[0].toUpperCase()}</div><div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(name)}</div><div style="font-size:11px;color:var(--text2)">${phone}</div></div><span class="badge ${cv.bot_paused ? 'badge-blue' : 'badge-green'}">${cv.bot_paused ? '🧑 Agente humano' : '🤖 Bot activo'}</span></div><div class="chat-msgs" id="msgs-area"><div style="text-align:center;color:var(--text2);padding:20px">Cargando…</div></div><div class="chat-input-area" id="chat-input-zone"></div>`
+  area.innerHTML = `<div class="chat-header"><div class="conv-av" style="width:36px;height:36px;font-size:14px">${(name||'?')[0].toUpperCase()}</div><div style="flex:1"><div style="font-size:13px;font-weight:600">${esc(name)}</div><div style="font-size:11px;color:var(--text2)">${phone}</div></div><span class="badge ${cv.bot_paused ? 'badge-blue' : 'badge-green'}">${cv.bot_paused ? '🧑 Agente humano' : '🤖 Bot activo'}</span><button class="btn btn-ghost btn-sm" onclick="deleteConv(${id})" title="Eliminar conversación" style="margin-left:8px;color:var(--danger);border-color:rgba(239,68,68,0.3)">🗑️ Eliminar</button></div><div class="chat-msgs" id="msgs-area"><div style="text-align:center;color:var(--text2);padding:20px">Cargando…</div></div><div class="chat-input-area" id="chat-input-zone"></div>`
   renderInputZone(id)
   document.getElementById('contact-detail').innerHTML = `
     <div class="contact-panel">
@@ -446,6 +450,12 @@ async function openConv(id, name, phone) {
         <h4>Human-in-the-loop</h4>
         <p style="font-size:12px;color:var(--text2);margin-bottom:10px">${cv.bot_paused ? 'Estás controlando esta conversación manualmente.' : 'El bot está respondiendo automáticamente.'}</p>
         <button class="btn hil-btn ${cv.bot_paused ? 'btn-ghost' : 'btn-danger'}" onclick="toggleHil(${id})">${cv.bot_paused ? '🤖 Devolver al bot' : '🧑 Tomar control'}</button>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--danger);border-color:rgba(239,68,68,0.3)" onclick="deleteConv(${id})">🗑️ Eliminar conversación</button>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--danger);border-color:rgba(239,68,68,0.3)" onclick="deleteConv(${id})">🗑️ Eliminar conversación</button>
       </div>
       <div class="divider"></div>
       <div class="fg"><label>Notas del contacto</label><textarea rows="3" placeholder="Anotá info relevante del cliente…" style="width:100%"></textarea></div>
@@ -2105,3 +2115,25 @@ setInterval(() => {
   if (document.getElementById('view-panel').classList.contains('active')) loadStats()
   loadStatus()
 }, 60000)
+
+async function deleteConv(id) {
+  const cv = allConvs.find(c => c.id === id)
+  const name = cv ? (cv.name || cv.phone || 'esta conversación') : 'esta conversación'
+  if (!confirm('¿Estás seguro de que querés eliminar la conversación con "' + name + '"?\n\nEsta acción borrará el historial de este chat del sistema.')) return
+  try {
+    const res = await apiFetch('/api/conversations/' + id, { method: 'DELETE' })
+    if (res.error) throw new Error(res.error)
+    toast('Conversación eliminada')
+    if (activeConvId === id) {
+      activeConvId = null
+      stopConvPolling()
+      document.getElementById('chat-area').innerHTML = '<div class="empty-state"><span class="empty-icon">💬</span><p>Seleccioná una conversación para ver los mensajes</p></div>'
+      document.getElementById('contact-detail').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3)">Seleccioná un contacto</div>'
+    }
+    await loadConversations()
+    await loadStats()
+    await loadConvsPanel()
+  } catch (err) {
+    alert('Error al eliminar conversación: ' + err.message)
+  }
+}
